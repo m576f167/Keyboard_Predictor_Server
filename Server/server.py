@@ -194,9 +194,9 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             if path_split[0] == "api":
                 client_address = self.client_address
                 if path_split[1] == "post-training":
-                    if (not g_model_server.isClientRegisteredTraining()):
+                    if (not g_model_server.isClientRegisteredTraining(client_address)):
                         print(" + Created new client: {}\n".format(client_address))
-                        g_model_server.registerListenerTraining()
+                        g_model_server.registerListenerTraining(client_address)
 
                     queue = g_model_server.getQueueTraining(client_address)
                     if (queue is not None):
@@ -210,9 +210,9 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                         print(" ! Queue not found: {}\n".format(client_address))
                         self.sendNACK()
                 elif path_split[1] == "post-inferrence":
-                    if (not g_model_server.isClientRegisteredInference()):
+                    if (not g_model_server.isClientRegisteredInference(client_address)):
                         print(" + Created new client: {}\n".format(client_address))
-                        g_model_server.registerListenerInference()
+                        g_model_server.registerListenerInference(client_address)
 
                     queue = g_model_server.getQueueInference(client_address)
                     if (queue is not None):
