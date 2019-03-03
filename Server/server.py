@@ -48,19 +48,25 @@ class ModelServer:
                                                                                              data["z"],
                                                                                              data["t"],
                                                                                              data["key"]])
+                    elif (sensor_type == "NULL"):
+                        lock.release()
+                        break
                     else:
                         pass
                 else:
                     pass
                 lock.release()
             except Empty:
-                self.training_output_accelerometer[client_address]["fh_file"].close()
-                self.training_output_gyroscope[client_address]["fh_file"].close()
-                del self.threads_training[queue]
-                del self.registered_training[client_address]
-                del self.training_output_accelerometer[client_address]
-                del self.training_output_gyroscope[client_address]
                 break
+
+        # Clean up thread
+        self.training_output_accelerometer[client_address]["fh_file"].close()
+        self.training_output_gyroscope[client_address]["fh_file"].close()
+        del self.threads_training[queue]
+        del self.registered_training[client_address]
+        del self.training_output_accelerometer[client_address]
+        del self.training_output_gyroscope[client_address]
+        print (" - Client disconnected: {}\n".format(client_address))
         return
 
     def threadProcessInferenceData(self, queue, lock, client_address):
@@ -189,27 +195,43 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 client_address = self.client_address
                 if path_split[1] == "post-training":
                     if (not g_model_server.isClientRegisteredTraining()):
+                        print(" + Created new client: {}\n".format(client_address))
                         g_model_server.registerListenerTraining()
 
                     queue = g_model_server.getQueueTraining(client_address)
                     if (queue is not None):
-                        queue.put(json.loads(parameters["data"]))
-                        self.sendACK()
+                        if (parameters.get("data") is None):
+                            print(" ! Received invalid POST data format: {}\n".format(client_address))
+                            self.sendNACK()
+                        else:
+                            queue.put(json.loads(parameters["data"]))
+                            self.sendACK()
+                    else:
+                        print(" ! Queue not found: {}\n".format(client_address))
+                        self.sendNACK()
                 elif path_split[1] == "post-inferrence":
                     if (not g_model_server.isClientRegisteredInference()):
+                        print(" + Created new client: {}\n".format(client_address))
                         g_model_server.registerListenerInference()
 
                     queue = g_model_server.getQueueInference(client_address)
                     if (queue is not None):
-                        queue.put(json.loads(parameters["data"]))
-                        self.sendACK()
+                        if (parameters.get("data") is None):
+                            print(" ! Received invalid POST data format: {}\n".format(client_address))
+                            self.sendNACK()
+                        else:
+                            queue.put(json.loads(parameters["data"]))
+                            self.sendACK()
+                    else:
+                        print(" ! Queue not found: {}\n".format(client_address))
+                        self.sendNACK()
                 else:
                     self.sendNACK()
             else:
                 self.sendNACK()
         except Exception as e:
-            self.sendNACK()
             print("Exception: {}\n".format(e))
+            self.sendNACK()
 
 def main(argv):
     # Declare necessary variables
